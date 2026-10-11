@@ -1,0 +1,345 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <limits.h>
+
+#define ROWS 6
+#define COLS 6
+#define OBSTACLE -1
+
+int grid[ROWS][COLS];
+int collected[ROWS][COLS];
+int dp[ROWS][COLS];
+
+void generateGrid();
+void printGrid(int playerRow, int playerCol, int score);
+void computeDP();
+void printOptimalPath();
+void playGame();
+
+int main()
+{
+    srand((unsigned int)time(NULL));
+
+    printf("=============================================\n");
+    printf("        TREASURE HUNTER - GRID DP GAME\n");
+    printf("=============================================\n");
+
+    do
+    {
+        generateGrid();
+        computeDP();
+    }
+    while (dp[ROWS - 1][COLS - 1] == INT_MIN);
+
+    playGame();
+
+    return 0;
+}
+
+void generateGrid()
+{
+    int r, c, chance;
+
+    for (r = 0; r < ROWS; r++)
+    {
+        for (c = 0; c < COLS; c++)
+        {
+            chance = rand() % 100;
+
+            if (chance < 15)
+            {
+                grid[r][c] = OBSTACLE;
+            }
+            else
+            {
+                grid[r][c] = rand() % 10;
+            }
+
+            collected[r][c] = 0;
+        }
+    }
+
+    grid[0][0] = rand() % 10;
+    grid[ROWS - 1][COLS - 1] = rand() % 10;
+}
+
+void printGrid(int playerRow, int playerCol, int score)
+{
+    int r, c;
+
+    printf("\nCurrent Score: %d\n\n", score);
+
+    printf("      ");
+
+    for (c = 0; c < COLS; c++)
+    {
+        printf(" %d  ", c);
+    }
+
+    printf("\n");
+
+    for (r = 0; r < ROWS; r++)
+    {
+        printf(" %d    ", r);
+
+        for (c = 0; c < COLS; c++)
+        {
+            if (r == playerRow && c == playerCol)
+            {
+                printf(" P  ");
+            }
+            else if (grid[r][c] == OBSTACLE)
+            {
+                printf(" X  ");
+            }
+            else if (collected[r][c] == 1)
+            {
+                printf(" .  ");
+            }
+            else
+            {
+                printf(" %d  ", grid[r][c]);
+            }
+        }
+
+        printf("\n");
+    }
+
+    printf("\nP = Player | X = Obstacle | . = Collected Treasure\n");
+}
+
+void computeDP()
+{
+    int r, c;
+    int fromUp, fromLeft;
+
+    for (r = 0; r < ROWS; r++)
+    {
+        for (c = 0; c < COLS; c++)
+        {
+            dp[r][c] = INT_MIN;
+        }
+    }
+
+    for (r = 0; r < ROWS; r++)
+    {
+        for (c = 0; c < COLS; c++)
+        {
+            if (grid[r][c] == OBSTACLE)
+            {
+                dp[r][c] = INT_MIN;
+                continue;
+            }
+
+            if (r == 0 && c == 0)
+            {
+                dp[r][c] = grid[r][c];
+            }
+            else if (r == 0)
+            {
+                if (dp[r][c - 1] != INT_MIN)
+                {
+                    dp[r][c] = dp[r][c - 1] + grid[r][c];
+                }
+            }
+            else if (c == 0)
+            {
+                if (dp[r - 1][c] != INT_MIN)
+                {
+                    dp[r][c] = dp[r - 1][c] + grid[r][c];
+                }
+            }
+            else
+            {
+                fromUp = dp[r - 1][c];
+                fromLeft = dp[r][c - 1];
+
+                if (fromUp == INT_MIN && fromLeft == INT_MIN)
+                {
+                    dp[r][c] = INT_MIN;
+                }
+                else if (fromUp > fromLeft)
+                {
+                    dp[r][c] = fromUp + grid[r][c];
+                }
+                else
+                {
+                    dp[r][c] = fromLeft + grid[r][c];
+                }
+            }
+        }
+    }
+}
+
+void printOptimalPath()
+{
+    int path[ROWS + COLS][2];
+    int len = 0;
+    int r = ROWS - 1;
+    int c = COLS - 1;
+    int i;
+
+    path[len][0] = r;
+    path[len][1] = c;
+    len++;
+
+    while (r != 0 || c != 0)
+    {
+        if (r == 0)
+        {
+            c--;
+        }
+        else if (c == 0)
+        {
+            r--;
+        }
+        else if (dp[r - 1][c] >= dp[r][c - 1])
+        {
+            r--;
+        }
+        else
+        {
+            c--;
+        }
+
+        path[len][0] = r;
+        path[len][1] = c;
+        len++;
+    }
+
+    printf("\n=============================================\n");
+    printf("              OPTIMAL PATH\n");
+    printf("=============================================\n");
+
+    for (i = len - 1; i >= 0; i--)
+    {
+        printf("(%d,%d)", path[i][0], path[i][1]);
+
+        if (i != 0)
+        {
+            printf(" -> ");
+        }
+    }
+
+    printf("\n");
+}
+
+void playGame()
+{
+    int row = 0;
+    int col = 0;
+    int score = grid[0][0];
+    int nextRow, nextCol;
+    int optimal;
+    char move;
+    char check;
+
+    collected[0][0] = 1;
+
+    printf("\n=============================================\n");
+    printf("               HOW TO PLAY\n");
+    printf("=============================================\n");
+    printf("Start Position: (0,0)\n");
+    printf("Destination: (%d,%d)\n\n", ROWS - 1, COLS - 1);
+    printf("R = Move Right\n");
+    printf("D = Move Down\n");
+    printf("Q = Quit Game\n");
+
+    while (row != ROWS - 1 || col != COLS - 1)
+    {
+        printGrid(row, col, score);
+
+        printf("\nEnter move (R/D/Q): ");
+        scanf(" %c", &move);
+
+        nextRow = row;
+        nextCol = col;
+
+        if (move == 'R' || move == 'r')
+        {
+            nextCol++;
+        }
+        else if (move == 'D' || move == 'd')
+        {
+            nextRow++;
+        }
+        else if (move == 'Q' || move == 'q')
+        {
+            printf("\nYou quit the game.\n");
+            printf("Final Score: %d\n", score);
+            return;
+        }
+        else
+        {
+            printf("\nInvalid key!\n");
+            printf("Use R, D or Q.\n");
+            continue;
+        }
+
+        if (nextRow < 0 || nextRow >= ROWS ||
+            nextCol < 0 || nextCol >= COLS)
+        {
+            printf("\n=============================================\n");
+            printf("                 GAME OVER!\n");
+            printf("=============================================\n");
+            printf("You tried to move outside the grid.\n");
+            printf("Final Score: %d\n", score);
+            return;
+        }
+
+        if (grid[nextRow][nextCol] == OBSTACLE)
+        {
+            printf("\n=============================================\n");
+            printf("                 GAME OVER!\n");
+            printf("=============================================\n");
+            printf("You hit an obstacle!\n");
+            printf("Final Score: %d\n", score);
+            return;
+        }
+
+        row = nextRow;
+        col = nextCol;
+
+        if (collected[row][col] == 0)
+        {
+            score += grid[row][col];
+            collected[row][col] = 1;
+        }
+    }
+
+    printGrid(row, col, score);
+
+    optimal = dp[ROWS - 1][COLS - 1];
+
+    printf("\n=============================================\n");
+    printf("                YOU WIN!\n");
+    printf("=============================================\n");
+
+    printf("Your Final Score : %d\n", score);
+    printf("Optimal DP Score : %d\n", optimal);
+
+    if (score == optimal)
+    {
+        printf("\nPERFECT!\n");
+        printf("You found the optimal path!\n");
+    }
+    else
+    {
+        printf("\nYou missed %d point(s).\n", optimal - score);
+
+        printf("\nEnter C to CHECK the optimal path: ");
+        scanf(" %c", &check);
+
+        if (check == 'C' || check == 'c')
+        {
+            printOptimalPath();
+        }
+        else
+        {
+            printf("\nOptimal path was not displayed.\n");
+        }
+    }
+
+    printf("\n=============================================\n");
+}
